@@ -147,6 +147,7 @@ module top #(
         .clk(clk),
         .reset(reset),
         .i_cmd_done(cmd_done),
+        .i_cmd_op(cmd_op),
         .i_cmd_error(cmd_error),
         .i_cmd_signals(cmd_signals),
         .i_cmd_target(cmd_target),
@@ -333,8 +334,12 @@ module top #(
                 end
             end
             2'b01: begin
-                if (sw[2]) display_value = watch_hour * 100 + watch_min;
-                else display_value = watch_sec * 100 + watch_msec;
+                if (sw[2])
+                    display_value = watch_hour * 100 + watch_min;
+                else begin
+                    display_value = watch_sec * 100 + watch_msec;
+                    decimal_mask[2] = 1'b1;
+                end
             end
             2'b10: display_value = distance;
             2'b11: begin

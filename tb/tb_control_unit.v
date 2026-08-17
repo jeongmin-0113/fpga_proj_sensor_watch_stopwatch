@@ -2,7 +2,7 @@
 
 module tb_control_unit;
     reg clk, reset;
-    reg cmd_done, cmd_error;
+    reg cmd_done, cmd_op, cmd_error;
     reg [9:0] cmd_signals;
     reg [3:0] cmd_target;
     reg [1:0] mode_select;
@@ -23,7 +23,7 @@ module tb_control_unit;
 
     system_control_unit dut (
         .clk(clk), .reset(reset),
-        .i_cmd_done(cmd_done), .i_cmd_error(cmd_error),
+        .i_cmd_done(cmd_done), .i_cmd_op(cmd_op), .i_cmd_error(cmd_error),
         .i_cmd_signals(cmd_signals), .i_cmd_target(cmd_target),
         .i_mode_select(mode_select),
         .i_btn_left(btn_left), .i_btn_right(btn_right),
@@ -52,7 +52,7 @@ module tb_control_unit;
 `ifdef DUMP_VCD
     initial begin
         $dumpfile("tb_control_unit.vcd");
-        $dumpvars(0, clk, reset, cmd_done, cmd_error, cmd_signals,
+        $dumpvars(0, clk, reset, cmd_done, cmd_op, cmd_error, cmd_signals,
                   cmd_target, mode_select, sr04_ready, sr04_done,
                   sr04_error, dht11_ready, dht11_done, dht11_valid,
                   stopwatch_run, stopwatch_clear, stopwatch_mode,
@@ -63,17 +63,20 @@ module tb_control_unit;
 `endif
 
     task command;
+        input op_in;
         input [9:0] signals_in;
         input [3:0] target_in;
         input error_in;
         begin
             @(negedge clk);
+            cmd_op = op_in;
             cmd_signals = signals_in;
             cmd_target = target_in;
             cmd_error = error_in;
             cmd_done = 1'b1;
             @(negedge clk);
             cmd_done = 1'b0;
+            cmd_op = 1'b0;
             cmd_signals = 0;
             cmd_target = 0;
             cmd_error = 0;
@@ -98,7 +101,8 @@ module tb_control_unit;
 
     initial begin
         clk = 0; reset = 1;
-        cmd_done = 0; cmd_error = 0; cmd_signals = 0; cmd_target = 0;
+        cmd_done = 0; cmd_op = 0; cmd_error = 0;
+        cmd_signals = 0; cmd_target = 0;
         mode_select = 0;
         btn_left = 0; btn_right = 0; btn_up = 0; btn_down = 0;
         stopwatch_saved = 0;
@@ -110,7 +114,7 @@ module tb_control_unit;
         reset = 0;
 
         // Decoded run action
-        command(10'b10_0000_0000, 0, 0);
+        command(0, 10'b10_0000_0000, 4'b1000, 0);
         if (!stopwatch_run) begin
             $display("FAIL: stopwatch did not run");
             failures = failures + 1;
@@ -123,28 +127,28 @@ module tb_control_unit;
         consume_response(3'd0);
 
         // /get_stop and pulse commands.
-        command(10'b01_0000_0000, 0, 0);
+        command(0, 10'b01_0000_0000, 0, 0);
         if (stopwatch_run) failures = failures + 1;
         consume_response(3'd0);
 
-        command(10'b00_1000_0000, 0, 0);
+        command(0, 10'b00_1000_0000, 0, 0);
         if (!stopwatch_clear) failures = failures + 1;
         consume_response(3'd0);
 
-        command(10'b00_0100_0000, 0, 0);
+        command(0, 10'b00_0100_0000, 0, 0);
         if (!stopwatch_mode) failures = failures + 1;
         consume_response(3'd0);
 
-        command(10'b00_0010_0000, 0, 0);
+        command(0, 10'b00_0010_0000, 0, 0);
         if (!stopwatch_save) failures = failures + 1;
         consume_response(3'd0);
         stopwatch_saved = 1;
-        command(10'b00_0001_0000, 0, 0);
+        command(0, 10'b00_0001_0000, 0, 0);
         if (!stopwatch_load) failures = failures + 1;
         consume_response(3'd0);
 
         // Decoded distance query launches SR04 and waits for completion.
-        command(0, 4'b0010, 0);
+        command(1, 10'b01_0000_0000, 4'b0010, 0);
         #1;
         if (!sr04_start || response_valid) begin
             $display("FAIL: SR04 query sequencing");
@@ -158,28 +162,32 @@ module tb_control_unit;
 
         // SR04 error and not-ready paths return ERR.
         wait (!response_valid);
-        command(0, 4'b0010, 0);
+        command(1, 0, 4'b0010, 0);
         @(negedge clk); sr04_error = 1;
         @(negedge clk); sr04_error = 0;
         consume_response(3'd1);
         sr04_ready = 0;
-        command(0, 4'b0010, 0);
+        command(1, 0, 4'b0010, 0);
         consume_response(3'd1);
         sr04_ready = 1;
 
         // DHT11 query returns data only for a valid frame.
-        command(0, 4'b0001, 0);
+        command(1, 0, 4'b0001, 0);
         if (!dht11_start) failures = failures + 1;
         @(negedge clk); dht11_valid = 1; dht11_done = 1;
         @(negedge clk); dht11_done = 0;
         consume_response(3'd5);
-        command(0, 4'b0001, 0);
+        command(1, 0, 4'b0001, 0);
         @(negedge clk); dht11_valid = 0; dht11_done = 1;
         @(negedge clk); dht11_done = 0;
         consume_response(3'd1);
 
         // Invalid decoder result returns ERR.
-        command(0, 0, 1);
+        command(0, 0, 0, 1);
+        consume_response(3'd1);
+
+        // op=1 must not interpret a stale one-byte signal vector.
+        command(1, 10'b10_0000_0000, 0, 0);
         consume_response(3'd1);
 
         // Watch buttons are routed only in watch display mode.

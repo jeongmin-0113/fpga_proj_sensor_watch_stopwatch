@@ -49,6 +49,57 @@ module tb_top_smoke;
             $display("FAIL: top-level status/display output contains X");
             failures = failures + 1;
         end
+
+        // Preserve the original watch display contract:
+        // lower page = sec:msec, upper page = hour:min.
+        force dut.watch_msec = 7'd34;
+        force dut.watch_sec  = 6'd12;
+        force dut.watch_min  = 6'd56;
+        force dut.watch_hour = 5'd9;
+        sw = 3'b001;
+        #1;
+        if (dut.display_value !== 14'd1234 ||
+            dut.decimal_mask !== 4'b0100) begin
+            $display("FAIL: watch sec:msec page value=%0d mask=%b",
+                     dut.display_value, dut.decimal_mask);
+            failures = failures + 1;
+        end
+        sw = 3'b101;
+        #1;
+        if (dut.display_value !== 14'd956 ||
+            dut.decimal_mask !== 4'b0000) begin
+            $display("FAIL: watch hour:min page value=%0d mask=%b",
+                     dut.display_value, dut.decimal_mask);
+            failures = failures + 1;
+        end
+        release dut.watch_msec;
+        release dut.watch_sec;
+        release dut.watch_min;
+        release dut.watch_hour;
+
+        // In each sensor display mode, the board DOWN button starts the
+        // selected controller; UART is an additional control path.
+        sw = 3'b010;
+        force dut.btn_down = 1'b1;
+        @(negedge clk);
+        if (dut.sr04_start !== 1'b1 || dut.dht11_start !== 1'b0) begin
+            $display("FAIL: DOWN button did not start only SR04");
+            failures = failures + 1;
+        end
+        force dut.btn_down = 1'b0;
+        @(negedge clk);
+
+        sw = 3'b011;
+        force dut.btn_down = 1'b1;
+        @(negedge clk);
+        if (dut.dht11_start !== 1'b1 || dut.sr04_start !== 1'b0) begin
+            $display("FAIL: DOWN button did not start only DHT11");
+            failures = failures + 1;
+        end
+        force dut.btn_down = 1'b0;
+        @(negedge clk);
+        release dut.btn_down;
+
         if (failures == 0)
             $display("TOP SMOKE TEST PASS");
         else

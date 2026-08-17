@@ -26,7 +26,7 @@ codec과 결합하기 위한 경계 규격입니다. 이 브랜치는 팀원 RTL
 | `o_done` | 1 | decode 결과가 유효한 1-cycle event |
 | `o_signals` | 10 | run, stop, clear, mode, save, load, up, down, left, right one-hot |
 | `o_target` | 4 | stopwatch, watch, distance, temp/humidity query one-hot |
-| `o_op` | 1 | query 계열 표시; Control은 target을 우선 해석 |
+| `o_op` | 1 | `0`: one-byte `o_signals`, `1`: multi-byte `o_target`; Control은 선택된 벡터만 해석 |
 
 목표 문자열 `/get_run`, `/get_stop`, `/get_dist`, `/get_temp_hum`의 파싱은
 decoder 담당입니다. 문자열이 위 one-hot 출력으로 변환되면 Top과 Control Unit은

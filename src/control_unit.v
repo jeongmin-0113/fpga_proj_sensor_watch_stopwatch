@@ -7,6 +7,7 @@ module system_control_unit (
     input        reset,
 
     input        i_cmd_done,
+    input        i_cmd_op,
     input        i_cmd_error,
     input  [9:0] i_cmd_signals,
     input  [3:0] i_cmd_target,
@@ -129,46 +130,55 @@ module system_control_unit (
                         if (i_cmd_error) begin
                             o_response_kind  <= RESP_ERROR;
                             o_response_valid <= 1'b1;
-                        end else if (i_cmd_target[3]) begin
-                            o_response_kind  <= RESP_SW;
-                            o_response_valid <= 1'b1;
-                        end else if (i_cmd_target[2]) begin
-                            o_response_kind  <= RESP_WATCH;
-                            o_response_valid <= 1'b1;
-                        end else if (i_cmd_target[1]) begin
-                            if (i_sr04_ready) begin
-                                o_sr04_start <= 1'b1;
-                                state_reg    <= WAIT_SR04;
+                        end else if (i_cmd_op) begin
+                            // Multi-byte command: only target is meaningful.
+                            if (i_cmd_target[3]) begin
+                                o_response_kind  <= RESP_SW;
+                                o_response_valid <= 1'b1;
+                            end else if (i_cmd_target[2]) begin
+                                o_response_kind  <= RESP_WATCH;
+                                o_response_valid <= 1'b1;
+                            end else if (i_cmd_target[1]) begin
+                                if (i_sr04_ready) begin
+                                    o_sr04_start <= 1'b1;
+                                    state_reg    <= WAIT_SR04;
+                                end else begin
+                                    o_response_kind  <= RESP_ERROR;
+                                    o_response_valid <= 1'b1;
+                                end
+                            end else if (i_cmd_target[0]) begin
+                                if (i_dht11_ready) begin
+                                    o_dht11_start <= 1'b1;
+                                    state_reg     <= WAIT_DHT11;
+                                end else begin
+                                    o_response_kind  <= RESP_ERROR;
+                                    o_response_valid <= 1'b1;
+                                end
                             end else begin
                                 o_response_kind  <= RESP_ERROR;
                                 o_response_valid <= 1'b1;
                             end
-                        end else if (i_cmd_target[0]) begin
-                            if (i_dht11_ready) begin
-                                o_dht11_start <= 1'b1;
-                                state_reg     <= WAIT_DHT11;
-                            end else begin
-                                o_response_kind  <= RESP_ERROR;
-                                o_response_valid <= 1'b1;
-                            end
-                        end else if (|i_cmd_signals) begin
-                            if (i_cmd_signals[9]) o_stopwatch_run <= 1'b1;
-                            if (i_cmd_signals[8]) o_stopwatch_run <= 1'b0;
-                            if (i_cmd_signals[7]) o_stopwatch_clear <= 1'b1;
-                            if (i_cmd_signals[6]) o_stopwatch_mode <= ~o_stopwatch_mode;
-                            if (i_cmd_signals[5] && !i_stopwatch_saved)
-                                o_stopwatch_save <= 1'b1;
-                            if (i_cmd_signals[4] && i_stopwatch_saved)
-                                o_stopwatch_load <= 1'b1;
-                            if (i_cmd_signals[3]) o_watch_up <= 1'b1;
-                            if (i_cmd_signals[2]) o_watch_down <= 1'b1;
-                            if (i_cmd_signals[1]) o_watch_left <= 1'b1;
-                            if (i_cmd_signals[0]) o_watch_right <= 1'b1;
-                            o_response_kind  <= RESP_ACK;
-                            o_response_valid <= 1'b1;
                         end else begin
-                            o_response_kind  <= RESP_ERROR;
-                            o_response_valid <= 1'b1;
+                            // One-byte command: only signals is meaningful.
+                            if (|i_cmd_signals) begin
+                                if (i_cmd_signals[9]) o_stopwatch_run <= 1'b1;
+                                if (i_cmd_signals[8]) o_stopwatch_run <= 1'b0;
+                                if (i_cmd_signals[7]) o_stopwatch_clear <= 1'b1;
+                                if (i_cmd_signals[6]) o_stopwatch_mode <= ~o_stopwatch_mode;
+                                if (i_cmd_signals[5] && !i_stopwatch_saved)
+                                    o_stopwatch_save <= 1'b1;
+                                if (i_cmd_signals[4] && i_stopwatch_saved)
+                                    o_stopwatch_load <= 1'b1;
+                                if (i_cmd_signals[3]) o_watch_up <= 1'b1;
+                                if (i_cmd_signals[2]) o_watch_down <= 1'b1;
+                                if (i_cmd_signals[1]) o_watch_left <= 1'b1;
+                                if (i_cmd_signals[0]) o_watch_right <= 1'b1;
+                                o_response_kind  <= RESP_ACK;
+                                o_response_valid <= 1'b1;
+                            end else begin
+                                o_response_kind  <= RESP_ERROR;
+                                o_response_valid <= 1'b1;
+                            end
                         end
                     end
                 end

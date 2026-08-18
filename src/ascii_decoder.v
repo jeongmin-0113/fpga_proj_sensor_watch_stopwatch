@@ -98,7 +98,7 @@ module ascii_decoder (
             end
             TARGET: begin
                 if (o_get) begin
-                    if (i_data == 8'h0A) begin
+                    if ((i_data == ".")) begin
                         n_state = DONE;
                     end else begin
                         command_next = {command_reg[71:0], i_data};

@@ -49,7 +49,7 @@ module stopwatch_datapath #(
         end
     end
 
-    tick_gen_100hz GEN_100HZ (
+    tick_gen_100Hz GEN_100HZ (
         .clk(clk),
         .reset(reset),
         .o_tick(w_tick_msec)
@@ -161,30 +161,30 @@ module stopwatch_time_counter #(
 endmodule
 
 
-module tick_gen_100hz (
-    input clk,
-    input reset,
-    output reg o_tick
-);
+// module tick_gen_100hz (
+//     input clk,
+//     input reset,
+//     output reg o_tick
+// );
 
-    parameter F_COUNT = 1_000_000;
-    //parameter F_COUNT = 1000;
-    reg [$clog2(F_COUNT)-1:0] counter_reg;
+//     parameter F_COUNT = 1_000_000;
+//     //parameter F_COUNT = 1000;
+//     reg [$clog2(F_COUNT)-1:0] counter_reg;
 
-    always @(posedge clk, posedge reset) begin
-        if (reset) begin
-            counter_reg <= 0;
-            o_tick <= 1'b0;
-        end else begin
-            if (counter_reg == F_COUNT - 1) begin
-                counter_reg <= 0;
-                o_tick <= 1'b1;
-            end else begin
-                counter_reg <= counter_reg + 1;
-                o_tick <= 1'b0;
-            end
-        end
-    end
+//     always @(posedge clk, posedge reset) begin
+//         if (reset) begin
+//             counter_reg <= 0;
+//             o_tick <= 1'b0;
+//         end else begin
+//             if (counter_reg == F_COUNT - 1) begin
+//                 counter_reg <= 0;
+//                 o_tick <= 1'b1;
+//             end else begin
+//                 counter_reg <= counter_reg + 1;
+//                 o_tick <= 1'b0;
+//             end
+//         end
+//     end
 
-endmodule
+// endmodule
 

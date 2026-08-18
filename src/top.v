@@ -92,6 +92,16 @@ module top #(
     assign led[2] = dht11_ready;
     assign led[3] = control_busy | uart_rx_overflow;
 
+    ila_0 U_ILA (
+        .clk(clk),
+        .probe0(sr04_trigger),
+        .probe1(sr04_echo),
+        .probe2(distance),
+        .probe3(U_ASCII_DECODER.c_state),
+        .probe4(U_ASCII_DECODER.command_reg)
+    );
+
+
     btn_debouncer U_BTN_LEFT (
         .clk  (clk),
         .reset(reset),
@@ -334,10 +344,9 @@ module top #(
                 end
             end
             2'b01: begin
-                if (sw[2])
-                    display_value = watch_hour * 100 + watch_min;
+                if (sw[2]) display_value = watch_hour * 100 + watch_min;
                 else begin
-                    display_value = watch_sec * 100 + watch_msec;
+                    display_value   = watch_sec * 100 + watch_msec;
                     decimal_mask[2] = 1'b1;
                 end
             end
